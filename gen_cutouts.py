@@ -51,6 +51,10 @@ def main(argv=sys.argv[1:]):
                         help="Min num pixel in mask for valid segments (remainder are skipped)")
     parser.add_argument('--categories', type=str, default = None,
                         help="Optional category name file (COCO or mapillary config.json style")
+    parser.add_argument('--feather_border', type=int, default = 2,
+                        help="Num of pixel to feather when masking non-instance labels (after resizing!)")
+    parser.add_argument('--max_dim', type=int, default = 512,
+                        help="Scale output cutouts to this max dim")
 
     args = parser.parse_args(argv)
     print("Loading COCO annotation file " + args.input_json + "...")
@@ -64,14 +68,17 @@ def main(argv=sys.argv[1:]):
     else:
         cat_j = annot #annotation file might include "categories" entry
     #create category_id -> category_name dict (default name is always the category_id itself)
+    instance_labels = {}
     if isinstance(cat_j, dict):
-        if "categories" in cat_j:
-            for idx, cat in enumerate(cat_j["categories"]):
-                cat_names[int(cat.get('id',idx))] = cat["name"].replace(' ','_')
-        elif "labels" in cat_j:
-            for idx, cat in enumerate(cat_j["labels"]):
-                cat_names[int(cat.get('id',idx+1))] = cat["name"].replace(' ','_') #MVD is 1-indexed! -> add 1 to list idx for category id
-    
+        for entry_name, idx_start, inst_name in [("categories",0,"isthing"),("labels",1,"instances")]:
+            if not entry_name in cat_j:
+                continue
+            for idx, cat in enumerate(cat_j[entry_name]):
+                cid = int(cat.get('id',idx+idx_start))
+                cat_names[cid] = cat["name"].replace(' ','_') #MVD is 1-indexed! -> add 1 to list idx for category id
+                if cat[inst_name]:
+                    instance_labels[cid] = True
+            break
     if not os.path.exists(args.output):
         os.makedirs(args.output)
     mask_dir = os.path.join(os.path.dirname(os.path.realpath(args.input_json)),os.path.splitext(os.path.basename(args.input_json))[0])
@@ -98,6 +105,9 @@ def main(argv=sys.argv[1:]):
         if inp_img_path is None or not os.path.exists(inp_img_path):
             print("Error: no input image at ",inp_img_path," for mask "+fname)
             return -4
+    feather_border = args.feather_border 
+    if args.feather_border > 0:
+        feather_border = (args.feather_border)*2+1
     #iterate through annotations
     for a in tqdm.tqdm(annot['annotations']):
         fname = fname_path(a['file_name'])
@@ -125,6 +135,21 @@ def main(argv=sys.argv[1:]):
                 continue
             rmin, rmax, cmin, cmax = np.min(segm_minmax[0]), np.max(segm_minmax[0]), np.min(segm_minmax[1]), np.max(segm_minmax[1])
             cutout = inp_img[rmin:rmax, cmin:cmax,:]
+            if feather_border>= 0 and not instance_labels.get(segment["category_id"],False): #nned to mask non-class labels
+                cutout = np.copy(cutout)
+                mask_cutout = mask_ids[rmin:rmax, cmin:cmax]
+                #feather borders
+                if feather_border > 0:
+                    mask_feather = np.zeros_like(cutout)
+                    mask_feather[mask_cutout==segment['id']] = 255
+                    mask_feather = cv2.GaussianBlur(mask_feather,(feather_border,feather_border),0)
+                    cutout = cutout * (mask_feather/255)
+                else:
+                    cutout[mask_cutout!=segment['id']] = 0
+            if args.max_dim > 0 and max(cutout.shape[0], cutout.shape[1]) > args.max_dim:
+                scaling = args.max_dim/max(cutout.shape[0], cutout.shape[1])
+                cutout=cv2.resize(cutout,None,fx=scaling, fy=scaling, interpolation = cv2.INTER_AREA)
+
             cv2.imwrite(trg_path,cutout)
     return 0
     
