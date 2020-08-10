@@ -40,7 +40,9 @@ def fname_path(path):
 def main(argv=sys.argv[1:]):
     parser = argparse.ArgumentParser()
     parser.add_argument('--input_json', type=str, 
-                        help="Input COCO annotation json; masks must be in subfolder <json_name>/*")
+                        help="Input COCO annotation json")
+    parser.add_argument('--mask_root', type=str, default = None
+                        help="Root folder with COCO masks pngs; per default in subfolder <json_name>/*")
     parser.add_argument('--input_root', type=str, 
                         help="Input root folder for intensity images (prob. RGB)")
     parser.add_argument('--output', type=str,
@@ -81,7 +83,11 @@ def main(argv=sys.argv[1:]):
             break
     if not os.path.exists(args.output):
         os.makedirs(args.output)
-    mask_dir = os.path.join(os.path.dirname(os.path.realpath(args.input_json)),os.path.splitext(os.path.basename(args.input_json))[0])
+    if args.mask_root in None:
+      mask_dir = os.path.join(os.path.dirname(os.path.realpath(args.input_json)),os.path.splitext(os.path.basename(args.input_json))[0])
+    else:
+      mask_dir = args.mask_root
+    
     if not os.path.exists(mask_dir):
         print("Error: no panoptic input masks at "+mask_dir)
         return -2
@@ -98,13 +104,13 @@ def main(argv=sys.argv[1:]):
     for a in annot['annotations']:
         inp_mask_path = os.path.join(mask_dir, a['file_name'])
         if not os.path.exists(inp_mask_path):
-            print("Error: no mask image at "+inp_mask_path)
-            return -3
+            print("Warning: no mask image at "+inp_mask_path)
+            continue
         fname = fname_path(a['file_name'])
         inp_img_path = img_name_mapping.get(fname,None)
         if inp_img_path is None or not os.path.exists(inp_img_path):
-            print("Error: no input image at ",inp_img_path," for mask "+fname)
-            return -4
+            print("Warning: no input image at ",inp_img_path," for mask "+fname)
+            continue
     feather_border = args.feather_border 
     if args.feather_border > 0:
         feather_border = (args.feather_border)*2+1
@@ -115,9 +121,9 @@ def main(argv=sys.argv[1:]):
         mask_ids = bgr2id(cv2.imread(inp_mask_path))
         inp_img = cv2.imread(img_name_mapping[fname])
         if inp_img.shape[:2] != mask_ids.shape[:2]:
-            print("Error: no input image and mask mismatch: ",img_name_mapping[fname], inp_img.shape[:2]," vs. mask "+fname+ " with ",mask_ids.shape[:2])
-            return -4
-
+            print("Warning: input image and mask mismatch: ",img_name_mapping[fname], inp_img.shape[:2]," vs. mask "+fname+ " with ",mask_ids.shape[:2])
+            continue
+            
         for idx, segment in enumerate(a['segments_info']):
             trg_path = os.path.join(args.output, str(cat_names[segment["category_id"]]), fname+"_%i.%s"%(idx, args.ext))
             if os.path.exists(trg_path):
