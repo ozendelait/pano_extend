@@ -76,7 +76,7 @@ def main(argv=sys.argv[1:]):
             for idx, cat in enumerate(cat_j[entry_name]):
                 cid = int(cat.get('id',idx+idx_start))
                 cat_names[cid] = cat["name"].replace(' ','_') #MVD is 1-indexed! -> add 1 to list idx for category id
-                if cat[inst_name]:
+                if inst_name in cat and cat[inst_name]:
                     instance_labels[cid] = True
             break
     if not os.path.exists(args.output):
@@ -135,7 +135,7 @@ def main(argv=sys.argv[1:]):
                 continue
             rmin, rmax, cmin, cmax = np.min(segm_minmax[0]), np.max(segm_minmax[0]), np.min(segm_minmax[1]), np.max(segm_minmax[1])
             cutout = inp_img[rmin:rmax, cmin:cmax,:]
-            if feather_border>= 0 and not instance_labels.get(segment["category_id"],False): #nned to mask non-class labels
+            if feather_border>= 0 and not instance_labels.get(segment["category_id"],False): #need to mask non-class labels
                 cutout = np.copy(cutout)
                 mask_cutout = mask_ids[rmin:rmax, cmin:cmax]
                 #feather borders
