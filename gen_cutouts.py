@@ -125,7 +125,7 @@ def main(argv=sys.argv[1:]):
             continue
             
         for idx, segment in enumerate(a['segments_info']):
-            trg_path = os.path.join(args.output, str(cat_names[segment["category_id"]]), fname+"_%i.%s"%(idx, args.ext))
+            trg_path = os.path.join(args.output, str(cat_names.get(segment["category_id"], segment["category_id"])), fname+"_%i.%s"%(idx, args.ext))
             if os.path.exists(trg_path):
                 continue
             if not os.path.exists(os.path.dirname(trg_path)):
