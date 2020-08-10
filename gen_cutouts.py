@@ -83,7 +83,7 @@ def main(argv=sys.argv[1:]):
             break
     if not os.path.exists(args.output):
         os.makedirs(args.output)
-    if args.mask_root in None:
+    if args.mask_root is None:
       mask_dir = os.path.join(os.path.dirname(os.path.realpath(args.input_json)),os.path.splitext(os.path.basename(args.input_json))[0])
     else:
       mask_dir = os.path.realpath(args.mask_root)
