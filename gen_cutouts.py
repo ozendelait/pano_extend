@@ -41,7 +41,7 @@ def main(argv=sys.argv[1:]):
     parser = argparse.ArgumentParser()
     parser.add_argument('--input_json', type=str, 
                         help="Input COCO annotation json")
-    parser.add_argument('--mask_root', type=str, default = None
+    parser.add_argument('--mask_root', type=str, default = None,
                         help="Root folder with COCO masks pngs; per default in subfolder <json_name>/*")
     parser.add_argument('--input_root', type=str, 
                         help="Input root folder for intensity images (prob. RGB)")
@@ -86,7 +86,7 @@ def main(argv=sys.argv[1:]):
     if args.mask_root in None:
       mask_dir = os.path.join(os.path.dirname(os.path.realpath(args.input_json)),os.path.splitext(os.path.basename(args.input_json))[0])
     else:
-      mask_dir = args.mask_root
+      mask_dir = os.path.realpath(args.mask_root)
     
     if not os.path.exists(mask_dir):
         print("Error: no panoptic input masks at "+mask_dir)
