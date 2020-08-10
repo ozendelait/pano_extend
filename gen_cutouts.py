@@ -35,7 +35,7 @@ def recursive_add_ic(folder, ext, mapping, max_depth = 7):
             recursive_add_ic(os.path.join(folder,f), ext, mapping, max_depth-1)
 
 def fname_path(path):
-    return os.path.splitext(os.path.basename(path))[0]
+    return os.path.splitext(os.path.basename(path))[0].replace('_leftImg8bit','').replace('_gtFine_panoptic','')
 
 def main(argv=sys.argv[1:]):
     parser = argparse.ArgumentParser()
