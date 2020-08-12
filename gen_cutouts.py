@@ -114,6 +114,7 @@ def main(argv=sys.argv[1:]):
     feather_border = args.feather_border 
     if args.feather_border > 0:
         feather_border = (args.feather_border)*2+1
+    min_dim = 4
     #iterate through annotations
     for a in tqdm.tqdm(annot['annotations']):
         fname = fname_path(a['file_name'])
@@ -140,12 +141,14 @@ def main(argv=sys.argv[1:]):
             if len(segm_minmax) < 1 or len(segm_minmax[0]) == 0:
                 continue
             rmin, rmax, cmin, cmax = np.min(segm_minmax[0]), np.max(segm_minmax[0]), np.min(segm_minmax[1]), np.max(segm_minmax[1])
+            if rmax-rmin <= min_dim or cmax-cmin <= min_dim:
+                continue #too thin for a cutout
             cutout = inp_img[rmin:rmax, cmin:cmax,:]
             if feather_border>= 0 and not instance_labels.get(segment["category_id"],False): #need to mask non-class labels
                 cutout = np.copy(cutout)
                 mask_cutout = mask_ids[rmin:rmax, cmin:cmax]
                 #feather borders
-                if feather_border > 0:
+                if feather_border > 0 and rmax-rmin > feather_border and cmax-cmin > feather_border:
                     mask_feather = np.zeros_like(cutout)
                     mask_feather[mask_cutout==segment['id']] = 255
                     mask_feather = cv2.GaussianBlur(mask_feather,(feather_border,feather_border),0)
