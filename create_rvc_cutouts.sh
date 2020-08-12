@@ -12,9 +12,7 @@ python3 ${EXT_PANO_SCRIPT_DIR}/gen_cutouts.py ${COMMON_PARAMS_TRAIN} --input_jso
 python3 ${EXT_PANO_SCRIPT_DIR}/gen_cutouts.py ${COMMON_PARAMS_VAL} --input_json ./wd2_pano.rvc_val.json --input_root ./wilddash/images/
 python3 ${EXT_PANO_SCRIPT_DIR}/gen_cutouts.py ${COMMON_PARAMS_TRAIN} --input_json ./cs_pano.rvc_train.json  --input_root ./cityscapes/leftImg8bit/train/
 python3 ${EXT_PANO_SCRIPT_DIR}/gen_cutouts.py ${COMMON_PARAMS_VAL} --input_json ./cs_pano.rvc_val.json --input_root ./cityscapes/leftImg8bit/val/
-python3 ${EXT_PANO_SCRIPT_DIR}/gen_cutouts.py ${COMMON_PARAMS_TRAIN} --input_json ./cs_pano.rvc_train.json  --input_root ./cityscapes/leftImg8bit/train/
-python3 ${EXT_PANO_SCRIPT_DIR}/gen_cutouts.py ${COMMON_PARAMS_VAL} --input_json ./cs_pano.rvc_val.json --input_root ./cityscapes/leftImg8bit/val/
-python3 ${EXT_PANO_SCRIPT_DIR}/gen_cutouts.py ${COMMON_PARAMS_TRAIN} --input_json ./vider_pano.rvc_train.json  --input_root ./viper/train/img
+python3 ${EXT_PANO_SCRIPT_DIR}/gen_cutouts.py ${COMMON_PARAMS_TRAIN} --input_json ./viper_pano.rvc_train.json  --input_root ./viper/train/img
 python3 ${EXT_PANO_SCRIPT_DIR}/gen_cutouts.py ${COMMON_PARAMS_VAL} --input_json ./viper_pano.rvc_val.json --input_root ./viper/val/img
 python3 ${EXT_PANO_SCRIPT_DIR}/gen_cutouts.py ${COMMON_PARAMS_TRAIN} --input_json ./mvd_pano.rvc_train.json --input_root ./mvd/training/images/
 python3 ${EXT_PANO_SCRIPT_DIR}/gen_cutouts.py ${COMMON_PARAMS_VAL} --input_json ./mvd_pano.rvc_val.json  --input_root ./mvd/validation/images/
