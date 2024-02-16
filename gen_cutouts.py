@@ -15,7 +15,7 @@ if len(opencv_version) < 4 or int(opencv_version[0]) < 3 or float(opencv_version
     print("Warning: Use opencv version > 3.1 to prevent Jpeg rotation problems!") 
 
 def bgr2id(color):
-    if isinstance(color, np.ndarray) and len(color.shape) == 3:
+    if isinstance(color, np.ndarray) and len(color.shape) >= 3:
         if color.dtype == np.uint8:
             color = color.astype(np.int32)
         return color[:, :, 2] + 256 * color[:, :, 1] + 256 * 256 * color[:, :, 0]
@@ -53,6 +53,8 @@ def main(argv=sys.argv[1:]):
                         help="Min num pixel in mask for valid segments (remainder are skipped)")
     parser.add_argument('--categories', type=str, default = None,
                         help="Optional category name file (COCO or mapillary config.json style")
+    parser.add_argument('--limit', type=str, default = None,
+                        help="limit to these labels, use semicolon as seperator for multiple labels")
     parser.add_argument('--feather_border', type=int, default = 2,
                         help="Num of pixel to feather when masking non-instance labels (after resizing!)")
     parser.add_argument('--max_dim', type=int, default = 512,
@@ -84,9 +86,19 @@ def main(argv=sys.argv[1:]):
     if not os.path.exists(args.output):
         os.makedirs(args.output)
     if args.mask_root is None:
-      mask_dir = os.path.join(os.path.dirname(os.path.realpath(args.input_json)),os.path.splitext(os.path.basename(args.input_json))[0])
+        mask_dir = os.path.join(os.path.dirname(os.path.realpath(args.input_json)),os.path.splitext(os.path.basename(args.input_json))[0])
     else:
-      mask_dir = os.path.realpath(args.mask_root)
+        mask_dir = os.path.realpath(args.mask_root)
+    
+    cat_accept_list = []
+    if not args.limit is None:
+        cat_accept_list = set(args.limit.split(';'))
+        if len(cat_names) > 0:
+            missing_cats = cat_accept_list.difference(set(cat_names.values()))
+            if len(missing_cats) > 0:
+                print("Warning; missing categories: "+str(missing_cats))
+                print("Available categories: ",str(cat_names.values()))
+            
     
     if not os.path.exists(mask_dir):
         print("Error: no panoptic input masks at "+mask_dir)
@@ -102,11 +114,12 @@ def main(argv=sys.argv[1:]):
         
     #first sanity check all paths
     for a in annot['annotations']:
-        inp_mask_path = os.path.join(mask_dir, a['file_name'])
+        fn = a.get('file_name',str(a['image_id'])+'.png')
+        inp_mask_path = os.path.join(mask_dir, fn)
         if not os.path.exists(inp_mask_path):
             print("Warning: no mask image at "+inp_mask_path)
             continue
-        fname = fname_path(a['file_name'])
+        fname = fname_path(fn)
         inp_img_path = img_name_mapping.get(fname,None)
         if inp_img_path is None or not os.path.exists(inp_img_path):
             print("Warning: no input image at ",inp_img_path," for mask "+fname)
@@ -116,17 +129,30 @@ def main(argv=sys.argv[1:]):
         feather_border = (args.feather_border)*2+1
     min_dim = 4
     #iterate through annotations
+    mask_ids, inp_img, fname_prev = None, None, ""
     for a in tqdm.tqdm(annot['annotations']):
-        fname = fname_path(a['file_name'])
-        inp_mask_path = os.path.join(mask_dir, a['file_name'])
-        mask_ids = bgr2id(cv2.imread(inp_mask_path))
-        inp_img = cv2.imread(img_name_mapping[fname])
+        fn = a.get('file_name',str(a['image_id'])+'.png')
+        fname = fname_path(fn)
+        inp_mask_path = os.path.join(mask_dir, fn)
+        all_segm = a['segments_info'] if 'segments_info' in a else [a]
+        name_per_idx = [str(cat_names.get(segment["category_id"], segment["category_id"])) for idx, segment in enumerate(all_segm)]
+        if len(cat_accept_list) > 0:
+            cat_one_frame = set(name_per_idx)
+            if len(cat_accept_list.intersection(cat_one_frame)) == 0:
+                continue
+        
+        if fname_prev != fname:
+            mask_ids = bgr2id(cv2.imread(inp_mask_path))
+            inp_img = cv2.imread(img_name_mapping[fname])
+            fname_prev = fname
         if inp_img.shape[:2] != mask_ids.shape[:2]:
             print("Warning: input image and mask mismatch: ",img_name_mapping[fname], inp_img.shape[:2]," vs. mask "+fname+ " with ",mask_ids.shape[:2])
             continue
             
-        for idx, segment in enumerate(a['segments_info']):
-            trg_path = os.path.join(args.output, str(cat_names.get(segment["category_id"], segment["category_id"])), fname+"_%i.%s"%(idx, args.ext))
+        for idx, segment in enumerate(all_segm):
+            if len(cat_accept_list) > 0 and name_per_idx[idx] not in cat_accept_list:
+                continue
+            trg_path = os.path.join(args.output, name_per_idx[idx], fname+"_%i.%s"%(idx, args.ext))
             if os.path.exists(trg_path):
                 continue
             if not os.path.exists(os.path.dirname(trg_path)):
@@ -142,6 +168,7 @@ def main(argv=sys.argv[1:]):
                 continue
             rmin, rmax, cmin, cmax = np.min(segm_minmax[0]), np.max(segm_minmax[0]), np.min(segm_minmax[1]), np.max(segm_minmax[1])
             if rmax-rmin <= min_dim or cmax-cmin <= min_dim:
+
                 continue #too thin for a cutout
             cutout = inp_img[rmin:rmax, cmin:cmax,:]
             if feather_border>= 0 and not instance_labels.get(segment["category_id"],False): #need to mask non-class labels
